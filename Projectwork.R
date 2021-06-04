@@ -38,27 +38,49 @@ ggplot() +
   theme(legend.position = "none") 
 
 ###################################################################
-# OVERVIEW  
-ggplot(wildschwein, aes(E, N, colour = TierName)) +
-  geom_point(size=0.5) +
-  theme(legend.position = "none")
-
-###################################################################
 # PRE-PROCESSING
-w <- wildschwein %>%
+wildschwein <- wildschwein %>%
   rename(Name="TierName", ID="TierID") %>%
-  mutate(Time = lubridate::round_date(DatetimeUTC,"15 minutes")) %>%
+  mutate(Time = lubridate::round_date(DatetimeUTC, "15 minutes")) %>%
   dplyr::select(!DatetimeUTC) %>%
   dplyr::select(!CollarID) %>%
   drop_na()
 
+###################################################################
+# OVERVIEW  
+w <- wildschwein %>%
+  mutate(timelag = as.numeric(difftime(lead(Time),Time,units = "mins")))
+
+ggplot(w, aes(Time, Name)) +
+  geom_line()
+
+ggplot(w, aes(E, N, colour=Name)) +
+  geom_point(size=0.5) +
+  theme(legend.position = "none")
 
 ###################################################################
-# STATISTIC TEST 
+# SPEED  
+w <- w %>%
+  group_by(Name) %>%
+  mutate(steplength = sqrt((E-lead(E))^2+(N-lead(N))^2)) %>%
+  mutate(speed = steplength/timelag)
+
+###################################################################
+# MOVING WINDOW FUNCTION
+
+
+###################################################################
+# KERNEL DENSITY ESTIMATION
+
+###################################################################
+# STATISTICAL TEST 
 # Are wildboars more often within the Fanel area?
 
 ###################################################################
-# 
+# VISUALIZATIONS
+
+
+
 
 
 
