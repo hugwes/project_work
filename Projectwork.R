@@ -25,29 +25,29 @@ wildschwein <- read_delim("Data/wildschwein.csv", ",")
 
 ###################################################################
 # IMPORT MAPS
-pk100_BE <- terra::rast("Data/pk100_BE_2056.tiff")
-plotRGB(pk100_BE)
+karte <- terra::rast("Data/pk100_BE_2056.tiff")
+plotRGB(karte)
 
 vegetationshoehe <- terra::rast("Data/vegetationshoehe_LFI.tif")
 plot(vegetationshoehe)
 
-feldaufnahmen <- read_sf("Data/Feldaufnahmen_Fanel.gpkg")
+felder <- read_sf("Data/Feldaufnahmen_Fanel.gpkg")
 ggplot() + 
-  geom_sf(data=feldaufnahmen, aes(fill = Frucht)) +
+  geom_sf(data=felder, aes(fill = Frucht)) +
   theme(legend.position = "none") 
 
 ###################################################################
 # OVERVIEW  
 ggplot(wildschwein, aes(E, N, colour = TierName)) +
-  geom_point(size=0.7) +
+  geom_point(size=0.5) +
   theme(legend.position = "none")
 
 ###################################################################
 # PRE-PROCESSING
-wildschwein_neu <- wildschwein %>%
+w <- wildschwein %>%
   rename(Name="TierName", ID="TierID") %>%
   mutate(Time = lubridate::round_date(DatetimeUTC,"15 minutes")) %>%
-  dplyr::select(!DatetimeUTC) %>%$
+  dplyr::select(!DatetimeUTC) %>%
   dplyr::select(!CollarID) %>%
   drop_na()
 
