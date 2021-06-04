@@ -1,14 +1,15 @@
 ###################################################################
 # LIBRARIES
-library(tidyverse) 
-library(readr)        # to import tabular data (e.g. csv)
-library(dplyr)        # to manipulate (tabular) data
-library(ggplot2)      # to visualize data
-library(sf)           # to handle spatial vector data (sf = shape file)
-library(terra)        # to handle raster data
-library(lubridate)    # to handle dates and times
+library(tidyverse)    # diverse packages
+library(readr)        # import tabular data (csv)
+library(dplyr)        # manipulate data
+library(ggplot2)      # visualize data
+library(sf)           # spatial vector data (shape file)
+library(terra)        # raster data
+library(lubridate)    # dates and times
 library(zoo)          # moving window functions
 library(tmap)         # thematic map
+library(recurse)      # revisitation metrics for trajectory data
 
 ###################################################################
 # IMPORT DATA FROM GITHUB
