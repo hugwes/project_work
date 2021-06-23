@@ -89,9 +89,12 @@ kde <- function(points, cellsize, bandwith, extent = NULL){
   matrix <- kde2d(coords[,1],coords[,2],h = bandwith,n = c(n_x,n_y),lims = extent_vec)
   raster(matrix)
 }
+# cellsize = Zellgrösse des Outputs
+# Bandwidth = Suchradius für die Dichteberechnung
+# Extent = Perimeter, in dem die Dicteverteilung berechnet werden soll
 
 # Dichteverteilung berechnen
-w_sample_kde <- kde(w_sample_sf, cellsize=100, bandwith=500, extent=felder)
+w_sample_kde <- kde(w_sample_sf, cellsize=10, bandwith=50, extent=felder)
 w_sample_kde # wir erhalten einen Rasterdatensatz
 
 # Visualisirung mit Base-R
@@ -159,9 +162,11 @@ ggplot() +
   theme_void() +
   theme(legend.position = "none")
 
-# Visualisierung mit ggplot (nur die höchsten 5% der Werte darstellen)
+# Nur die höchsten 2 bzw. 5% der Werte
 q95 <- raster::quantile(w_kde, probs=0.95)
+q98 <- raster::quantile(w_kde, probs=0.98)
 
+# Visualisierung mit ggplot (nur die höchsten 2% der Werte darstellen)
 ggplot() + 
   geom_sf(data=felder, fill=NA, color="black") +
   geom_stars(data=st_as_stars(w_kde), alpha=0.8) +
@@ -170,9 +175,6 @@ ggplot() +
   labs(fill="KDE", title="Dichteverteilung der Wildschweine")
 
 ###################################################################
-# STATISTICAL TEST 
-# Are wildboars more often within the Fanel area?
-
 
 
 
