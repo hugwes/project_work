@@ -23,15 +23,19 @@ library(ComputationalMovementAnalysisData)
 # Wildschweine
 devtools::install_github("ComputationalMovementAnalysis/ComputationalMovementAnalysisData")
 head(wildschwein_BE)
-wildschwein_BE<- wildschwein_BE %>%
-  st_as_sf(coords = c("E", "N"), crs = 2056, remove = FALSE)
+wildschwein_BE <- wildschwein_BE
 
 # Feldaufnahmen
-Feldaufnahmen <- read_sf("Data/Feldaufnahmen_Fanel.gpkg")%>%
-  st_as_sf(coords = geom, crs = 2056, remove = FALSE)
+Feldaufnahmen <- read_sf("Data/Feldaufnahmen_Fanel.gpkg") %>%
+  st_as_sf(coords=geom, crs=2056, remove=FALSE)
 
 ###################################################################
 # ERTSTE VISUALISIERUNG
+# Zeiträume
+ggplot(wildschwein_BE, aes(DatetimeUTC, TierName)) +
+  geom_line() +
+  labs(x="Zeit", y="Tiername") 
+
 # Wildschweine
 ggplot() +
   geom_point(data=wildschwein_BE, aes(E, N, color=TierName), size=0.2)# Feldaufnahmen
@@ -48,7 +52,7 @@ ggplot() +
 ###################################################################
 # DATENVORBEARBEITUNG
 # Filtern nach 15 min-Messungen
-wildschwein_BE$DatetimeUTC <- as.POSIXct(as.character(wildschwein_BE$DatetimeUTC), format = "%Y-%m-%d %H:%M:%OS",tz = "UTC")
+wildschwein_BE$DatetimeUTC <- as.POSIXct(as.character(wildschwein_BE$DatetimeUTC), format="%Y-%m-%d %H:%M:%OS", tz="UTC")
 wildschwein_BE$Minute <- minute(wildschwein_BE$DatetimeUTC)
 wildschwein_BE <- wildschwein_BE %>% filter(Minute == c(00, 15, 30, 45))
 wildschwein_BE <- wildschwein_BE[,-(9),drop=FALSE]
@@ -75,17 +79,12 @@ trainingsample <- wildschwein_BE %>%
         sqrt((E-lead(E,3))^2+(E-lead(E,3))^2),  
         sqrt((E-lead(E,4))^2+(E-lead(E,4))^2),  
         sqrt((E-lead(E,5))^2+(E-lead(E,5))^2),  
-        sqrt((E-lead(E,6))^2+(E-lead(E,6))^2)  
-      )                                        
-    )
-  )
+        sqrt((E-lead(E,6))^2+(E-lead(E,6))^2))))
 
 # Static (Aufteilung in Stops & Moves)
 trainingsample_stops <- trainingsample %>% 
   ungroup() %>%
   mutate(static = stepMean < 8.69)
-
-# ???
 
 # Segmentbasierte Analyse (Segment-Id's für Trajektories definieren)
 rle_id <- function(vec){
@@ -94,8 +93,6 @@ rle_id <- function(vec){
 
 trainingsample_stops <- trainingsample_stops %>%
   mutate(segment_id = rle_id(static))
-
-head(trainingsample_stops)
 
 # Länge der Trajectories messen
 trainingsample_stops$Dauer <- 1
@@ -107,38 +104,26 @@ trainingsample_stops <- left_join(trainingsample_stops, trainingsample_stops_dau
 trainingsample_filter <- trainingsample_stops %>%
   filter(static)
 
-# Stop-Segmente entfernen --> diese dann verwenden für den 2. Ansatz. 
-# Diese heissen momentan bei mir: trainingsample_moves 
-
-
-# Plot
-trainingsample_filter%>%
+# Plot (mögliche Ruheplätze nach Tiernamen)
+trainingsample_filter %>%
   ggplot()  +
-  geom_point(aes(E, N, color = TierName))+
+  geom_point(aes(E, N, color=TierName))+
   coord_fixed()
 
-
-###################################################################
 # Segmentzentren festlegen
 trainingsample_center <- aggregate(trainingsample_filter[, c(5:6)], list(trainingsample_filter$segment_id), mean)
 
-# Join for TierID/TierName
-#trainingsample_filter%>%st_as_sf(coords = c("E", "N"), crs = 2056, remove = FALSE)
-#trainingsample_center%>%st_as_sf(coords = c("E", "N"), crs = 2056, remove = FALSE)
-
+# Join (TierID/TierName)
 names(trainingsample_center)[1] <- "segment_id"
+trainingsample_center_join <- left_join(trainingsample_filter, trainingsample_center, by="segment_id")
 
-trainingsample_center_join<-left_join(trainingsample_filter, trainingsample_center, by="segment_id")
-#%>%st_as_sf(coords = c("E.x" "N.x"), crs = 2056, remove = FALSE)
-
-head(trainingsample_center_join)
+# Plot (Feldaufnahmen & Mögliche Ruheplätze)
 ggplot() +
   geom_sf(data = Feldaufnahmen, aes(fill = Frucht))+
-  geom_point(data = trainingsample_center_join, aes(E.y, N.y, color = TierName, size = Dauer.y))
-
+  geom_point(data = trainingsample_center_join, aes(E.y, N.y, color=TierName, size=Dauer.y))
 
 ###################################################################
-# Feldaufnahmen joinen and clean dataframe
+# Feldaufnahmen joinen and Dataframe säubern
 wildschwein <- trainingsample_center_join
 head(wildschwein)
 wildschwein <- wildschwein[,-(3),drop=FALSE]
@@ -152,7 +137,7 @@ head(wildschwein)
 
 ###################################################################
 # Feldaufnahmen kategorisieren, NA's entfernen
-Feldaufnahmen_korr<-Feldaufnahmen%>%
+Feldaufnahmen_korr <- Feldaufnahmen %>%
   mutate(Frucht = str_replace(Frucht, "Acker|Ackerbohnen|Baumschule|Blumenbeet|Bohnen|Brokkoli|Erbsen|Fenchel|Flachs|Flugplatz|Gemuese|Gewaechshaus|Karotten|Kartoffeln|Kohl|Kohlrabi|Kuerbis|Lauch|Lupinen|Mangold|Obstplantage|Rhabarber|Rueben|Salat|Sellerie|Spargel|Spinat|Zucchetti|Zwiebeln", "Niedere Kulturen"))%>%
   mutate(Frucht = str_replace(Frucht, "NiedereKulturenbohnen|Niedere Kulturenrabi|Niedere Kulturenbohnen", "Niedere Kulturen"))%>%
   mutate(Frucht = str_replace(Frucht, "Gerste|Hafer|Roggen|Weizen", "Getreide"))%>%
@@ -160,20 +145,18 @@ Feldaufnahmen_korr<-Feldaufnahmen%>%
   mutate(Frucht = str_replace(Frucht, "Buntbrache|Brache", "zus.(Bunt)-Brache"))%>%
   mutate(Frucht = str_replace(Frucht, "Raps", "zus. Raps"))
 
-wildschwein <- wildschwein%>%st_as_sf(coords = c("E.y", "N.y"), crs = 2056, remove = FALSE)
+wildschwein <- wildschwein %>% st_as_sf(coords = c("E.y", "N.y"), crs=2056, remove=FALSE)
 wildschwein <- st_join(wildschwein,Feldaufnahmen_korr, suffix = c("E.y", "N.y"))
-wildschwein <- wildschwein%>% drop_na(Frucht)
+wildschwein <- wildschwein %>% drop_na(Frucht)
 
-ggplot() +
-  geom_sf(data=Feldaufnahmen_korr, aes(fill = Frucht))+
-  geom_point(data = wildschwein, aes(E.y, N.y, color = TierName, size = Dauer.y))
-
+# Plot (Ruheplätze im Untersuchungsgebiet nach Vegetationstyp)
 ggplot() +
   geom_sf(data=Feldaufnahmen, aes())+
   geom_point(data = wildschwein, aes(E.y, N.y, color = Frucht, size = Dauer.y))
 
-# Aufteilen nach Jahreszeit
-wildschwein$DatetimeUTC<-as.POSIXct(as.character(wildschwein$DatetimeUTC), format = "%Y-%m-%d %H:%M:%OS",tz = "UTC")
+###################################################################
+# AUFTEILUNG NACH JAHRESZEIT 
+wildschwein$DatetimeUTC <- as.POSIXct(as.character(wildschwein$DatetimeUTC), format="%Y-%m-%d %H:%M:%OS", tz="UTC")
 wildschwein$Monat <- month(wildschwein$DatetimeUTC)
 wildschwein$Jahreszeit[wildschwein$Monat == "3"] <- "Fruehling"
 wildschwein$Jahreszeit[wildschwein$Monat == "4"] <- "Fruehling"
@@ -202,17 +185,16 @@ wildschwein_anteil_winter<-wildschwein_anteil_jahreszeit%>%filter(Group.2 == "Wi
 barplot(Anteil~Group.1, data = wildschwein_anteil)
 
 ###################################################################
-# Resultate Plots
-
+# RESULTATE PLOTS
 names(wildschwein)[8] <- "Anzahl_Messungen"
 names(wildschwein)[13] <- "Habitattyp"
 
-# Frühling, Sommer, Herbst und Winter in richtiger Rheienfolge
+# Frühling, Sommer, Herbst und Winter in richtiger Reihenfolge
 neworder <- c("Fruehling","Sommer","Herbst", "Winter")
-library(plyr)  ## or dplyr (transform -> mutate)
 wildschwein <- arrange(transform(wildschwein,
                                  Jahreszeit=factor(Jahreszeit,levels=neworder)),Jahreszeit)
 
+# Plot: Ruheplaetze im Untersuchungsgebiet
 ggplot() +
   geom_bar(data=wildschwein, aes(sum(Anteil),fill = Habitattyp), position = "fill")+
   facet_grid(~Jahreszeit)+
@@ -220,20 +202,15 @@ ggplot() +
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank())
 
-ggplot() +
-  geom_sf(data=Feldaufnahmen_korr, aes(fill = Frucht))+
-  geom_point(data = wildschwein, aes(E.y, N.y, size = Anzahl_Messungen))+
-  theme(axis.text.x=element_blank(), axis.text.y=element_blank(),
-        axis.ticks.x=element_blank(), axis.ticks.y=element_blank())+
-  labs(x = "", y = "", title = "Ruheplaetze im Untersuchungsgebiet nach Habitattyp", subtitle = "")
-
+# Plot: Ruheplaetze im Untersuchungsgebiet nach Vegetationstyp
 ggplot() +
   geom_sf(data=Feldaufnahmen, aes())+
   geom_point(data = wildschwein, aes(E.y, N.y, color = Habitattyp, size = Anzahl_Messungen))+
   theme(axis.text.x=element_blank(), axis.text.y=element_blank(),
         axis.ticks.x=element_blank(), axis.ticks.y=element_blank())+
-  labs(x = "", y = "", title = "Ruheplaetze im Untersuchungsgebiet nach Habitattyp", subtitle = "")
+  labs(x = "", y = "", title = "Ruheplaetze im Untersuchungsgebiet nach Vegetationstyp", subtitle = "")
 
+###################################################################
 # Kuchendiagramme und Prozentzahlen total und aufgeteilt nach Jahreszeit
 pct <- round(wildschwein_anteil$Anteil/sum(wildschwein_anteil$Anteil)*100)
 lbls <- paste(wildschwein_anteil$Group.1, pct) # add percents to labels
@@ -266,119 +243,7 @@ pie(wildschwein_anteil_winter$Anteil,labels = lbls, col=rainbow(length(lbls)),
     main="Aufteilung der Ruheplaetze nach Vegetationstyp - Winter")
 
 # Durchschnittliche Dauer am Ruheort
-wildschwein_dauer<- aggregate(wildschwein[, c(8)], list(wildschwein$Habitattyp), mean)
-
-###################################################################
-# Vergleich mit dem von den Wildschweinen genutztem Habitat
-# Feldaufnahmen kategorisieren, NA's entfernen
-wildschwein_BE<- wildschwein_BE%>%
-  st_as_sf(coords = c("E", "N"), crs = 2056, remove = FALSE)
-
-wildschwein_all <-st_join(wildschwein_BE,Feldaufnahmen_korr, suffix = c("E", "N"))
-wildschwein_all <-wildschwein_all%>% drop_na(Frucht)
-
-names(wildschwein_all)[11] <- "Habitattyp"
-
-ggplot() +
-  geom_sf(data=Feldaufnahmen_korr, aes(fill = Habitattyp))+
-  geom_point(data = wildschwein_all, aes(E, N))
-
-ggplot() +
-  geom_sf(data=Feldaufnahmen_korr, aes())+
-  geom_point(data = wildschwein_all, aes(E, N, color = Habitattyp))
-
-# Anteil an Flächen
-# Aufteilen nach Jahreszeit
-wildschwein_all$DatetimeUTC<-as.POSIXct(as.character(wildschwein_all$DatetimeUTC), format = "%Y-%m-%d %H:%M:%OS",tz = "UTC")
-wildschwein_all$Monat <- month(wildschwein_all$DatetimeUTC)
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "3"] <- "Fruehling"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "4"] <- "Fruehling"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "5"] <- "Fruehling"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "6"] <- "Sommer"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "7"] <- "Sommer"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "8"] <- "Sommer"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "9"] <- "Herbst"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "10"] <- "Herbst"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "11"] <- "Herbst"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "12"] <- "Winter"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "1"] <- "Winter"
-wildschwein_all$Jahreszeit[wildschwein_all$Monat == "2"] <- "Winter"
-
-wildschwein_all$Anteil <- 1
-wildschwein_all_anteil<- aggregate(wildschwein_all[, c(14)], list(wildschwein_all$Habitattyp), sum)
-wildschwein_all_anteil_jahreszeit<- aggregate(wildschwein_all[, c(14)], list(wildschwein_all$Habitattyp, wildschwein_all$Jahreszeit), sum)
-
-wildschwein_all_anteil_fruehling<-wildschwein_all_anteil_jahreszeit%>%filter(Group.2 == "Fruehling")
-wildschwein_all_anteil_sommer<-wildschwein_all_anteil_jahreszeit%>%filter(Group.2 == "Sommer")
-wildschwein_all_anteil_herbst<-wildschwein_all_anteil_jahreszeit%>%filter(Group.2 == "Herbst")
-wildschwein_all_anteil_winter<-wildschwein_all_anteil_jahreszeit%>%filter(Group.2 == "Winter")
-
-barplot(Anteil~Group.1, data = wildschwein_all_anteil)
-
-# Frühling, Sommer, Herbst und Winter in richtiger Rheienfolge
-neworder <- c("Fruehling","Sommer","Herbst", "Winter")
-library(plyr)  ## or dplyr (transform -> mutate)
-wildschwein_all <- arrange(transform(wildschwein_all,
-                                     Jahreszeit=factor(Jahreszeit,levels=neworder)),Jahreszeit)
-
-# Resultate Plots
-ggplot() +
-  geom_bar(data=wildschwein_all, aes(sum(Anteil),fill = Habitattyp), position = "fill")+
-  facet_grid(~Jahreszeit)+
-  labs(x = "Jahreszeiten", y = "Aufteilung aller Lokationen in die verschiedenen Habitattypen", title = "Raumnutzung im Untersuchungsgebiet")+
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
-ggplot() +
-  geom_sf(data=Feldaufnahmen_korr, aes(fill = Habitattyp))+
-  geom_point(data = wildschwein_all, aes(E, N))+
-  theme(axis.text.x=element_blank(), axis.text.y=element_blank(),
-        axis.ticks.x=element_blank(), axis.ticks.y=element_blank())+
-  labs(x = "", y = "", title = "Raumnutzung Untersuchungsgebiet nach Habitattyp", subtitle = "")
-
-# Kuchendiagramme und Prozentzahlen
-pct <- round(wildschwein_all_anteil$x/sum(wildschwein_all_anteil$x)*100)
-lbls <- paste(wildschwein_all_anteil$Group.1, pct) # add percents to labels
-lbls <- paste(lbls,"%",sep="") # ad % to labels
-pie(wildschwein_all_anteil$x,labels = lbls, col=rainbow(length(lbls)),
-    main="Aufteilung der aller Lokationen nach Vegetationstyp")
-
-pct <- round(wildschwein_all_anteil_fruehling$Anteil/sum(wildschwein_all_anteil_fruehling$Anteil)*100)
-lbls <- paste(wildschwein_all_anteil_fruehling$Group.1, pct)
-lbls <- paste(lbls,"%",sep="")
-pie(wildschwein_all_anteil_fruehling$Anteil,labels = lbls, col=rainbow(length(lbls)),
-    main="Aufteilung der Ruheplaetze nach Vegetationstyp - Fruehling")
-
-pct <- round(wildschwein_anteil_sommer$x/sum(wildschwein_anteil_sommer$x)*100)
-lbls <- paste(wildschwein_anteil_sommer$Group.1, pct) 
-lbls <- paste(lbls,"%",sep="") 
-pie(wildschwein_anteil_sommer$x,labels = lbls, col=rainbow(length(lbls)),
-    main="Aufteilung der Ruheplaetze nach Vegetationstyp - Sommer")
-
-pct <- round(wildschwein_all_anteil_herbst$x/sum(wildschwein_all_anteil_herbst$x)*100)
-lbls <- paste(wildschwein_all_anteil_herbst$Group.1, pct) # add percents to labels
-lbls <- paste(lbls,"%",sep="") # ad % to labels
-pie(wildschwein_all_anteil_herbst$x,labels = lbls, col=rainbow(length(lbls)),
-    main="Aufteilung der Ruheplaetze nach Vegetationstyp - Herbst")
-
-pct <- round(wildschwein_all_anteil_winter$x/sum(wildschwein_all_anteil_winter$x)*100)
-lbls <- paste(wildschwein_all_anteil_winter$Group.1, pct) # add percents to labels
-lbls <- paste(lbls,"%",sep="") # ad % to labels
-pie(wildschwein_all_anteil_winter$x,labels = lbls, col=rainbow(length(lbls)),
-    main="Aufteilung der Ruheplaetze nach Vegetationstyp - Winter")
-
-# Vergleich Ruheplätze zu gesamter Raumnutzung 
-wildschwein_anteil$Data<-"Ruheplatz"
-wildschwein_all_anteil$Data<-"Alle"
-wildschwein_anteil_rbind<-rbind(wildschwein_anteil, wildschwein_all_anteil)
-
-ggplot() +
-  geom_bar(data=wildschwein_all, aes(sum(Anteil),fill = Frucht), position = "fill")+
-  facet_grid(~Jahreszeit)+
-  labs(x = "Jahreszeiten", y = "Aufteilung aller Lokationen in die verschiedenen Habitattypen", title = "Raumnutzung im Untersuchungsgebiet")+
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-
+wildschwein_dauer <- aggregate(wildschwein[, c(8)], list(wildschwein$Habitattyp), mean)
 
 ###################################################################
 # STATISTISCHE TESTS
@@ -409,7 +274,7 @@ boxplot(Anteil_landw$Ruheplatz, Anteil_Schilf$All)
 t.test(Anteil_landw$Ruheplatz, Anteil_Schilf$All)
 # --> signifikant
 
-# Ruhephase untersuchen zwischen den verschiedenen Habitaten
+# Ruhephase untersuchen zwischen den verschiedenen Vegetationstypen
 Schilf<- wildschwein%>%filter(Habitattyp == "Feuchtgebiet")
 Schilf<-Schilf[, 8:9]
 Schilf<-Schilf[!duplicated(Schilf), ]
@@ -471,7 +336,7 @@ t.test(Dauer$Schilf, Dauer$Wald)
 # --> signifikant
 
 ###################################################################
-### 2. ANSATZ - VEKORDATEN ###
+### 2. ANSATZ - RASTERDATEN ###
 ###################################################################
 
 ###################################################################
@@ -489,7 +354,6 @@ w_filter <- w_join %>%
 
 ###################################################################
 # KERNDICHTESCHÄTZUNG (KDE)
-
 # KDE-Funktion erstellen
 kde <- function(points, cellsize, bandwith, extent = NULL){
   require(MASS)
@@ -519,6 +383,7 @@ w_kde <- kde(w_filter, cellsize=20, bandwith=50, extent=Feldaufnahmen)
 # Visualisierung mit ggplot (nur die höchsten 5% der Werte darstellen)
 q95 <- raster::quantile(w_kde, probs=0.95)
 
+# Plot (Dichteverteilung der Wildschweine)
 ggplot() + 
   geom_sf(data=Feldaufnahmen, fill=NA, color="black") +
   geom_stars(data=st_as_stars(w_kde), alpha=0.8) +
@@ -529,10 +394,10 @@ ggplot() +
 
 ###################################################################
 # VERKNÜPFUNG MIT DEN VEGETATIONSTYPEN
-
 # Zentroide der einzelnen Vegetationszonen
 centroids <- sf::st_centroid(Feldaufnahmen)
 
+# Plot: Parzellen mit Zentroiden
 ggplot() + 
   geom_sf(data=Feldaufnahmen, aes(fill=Frucht)) + 
   geom_sf(data=centroids)
@@ -564,13 +429,11 @@ ggplot() +
 
 ###################################################################
 # MITTELWERTE DER VEGETATIONSTYPEN
-
 # Mittelwerte pro Vegetationstyp
 w_mittelwerte <- aggregate(W_kde$kde_value ~ W_kde$Frucht, FUN=mean)
 
 ###################################################################
 # KDE (AUFGETEILT NACH JAHRESZEITEN)
-
 # Daten filtern
 Winter <- w_filter %>%
   mutate(month = month(DatetimeUTC)) %>%
@@ -650,7 +513,6 @@ sommer_mittelwerte <- aggregate(W_kde$kde_value_sommer ~ W_kde$Frucht, FUN=mean)
 kde_value_herbst <- terra::extract(herbst_kde, st_coordinates(centroids))
 W_kde <- cbind(Feldaufnahmen, kde_value_herbst)
 herbst_mittelwerte <- aggregate(W_kde$kde_value_herbst ~ W_kde$Frucht, FUN=mean)
-
 
 
 
