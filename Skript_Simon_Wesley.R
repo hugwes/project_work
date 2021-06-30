@@ -245,6 +245,120 @@ pie(wildschwein_anteil_winter$Anteil,labels = lbls, col=rainbow(length(lbls)),
 # Durchschnittliche Dauer am Ruheort
 wildschwein_dauer <- aggregate(wildschwein[, c(8)], list(wildschwein$Habitattyp), mean)
 
+
+
+###################################################################
+# Vergleich mit dem von den Wildschweinen genutztem Habitat
+# Feldaufnahmen kategorisieren, NA's entfernen
+wildschwein_BE <- wildschwein_BE%>%
+  st_as_sf(coords = c("E", "N"), crs = 2056, remove = FALSE)
+
+wildschwein_all <-st_join(wildschwein_BE,Feldaufnahmen_korr, suffix = c("E", "N"))
+wildschwein_all <-wildschwein_all%>% drop_na(Frucht)
+
+names(wildschwein_all)[11] <- "Habitattyp"
+
+ggplot() +
+  geom_sf(data=Feldaufnahmen_korr, aes(fill = Frucht))+
+  geom_point(data = wildschwein_all, aes(E, N))
+
+ggplot() +
+  geom_sf(data=Feldaufnahmen_korr, aes())+
+  geom_point(data = wildschwein_all, aes(E, N, color = Habitattyp))
+
+# Anteil an Flächen
+
+# Aufteilen nach Jahreszeit
+wildschwein_all$DatetimeUTC<-as.POSIXct(as.character(wildschwein_all$DatetimeUTC), format = "%Y-%m-%d %H:%M:%OS",tz = "UTC")
+wildschwein_all$Monat <- month(wildschwein_all$DatetimeUTC)
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "3"] <- "Fruehling"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "4"] <- "Fruehling"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "5"] <- "Fruehling"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "6"] <- "Sommer"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "7"] <- "Sommer"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "8"] <- "Sommer"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "9"] <- "Herbst"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "10"] <- "Herbst"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "11"] <- "Herbst"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "12"] <- "Winter"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "1"] <- "Winter"
+wildschwein_all$Jahreszeit[wildschwein_all$Monat == "2"] <- "Winter"
+
+wildschwein_all$Anteil <- 1
+wildschwein_all_anteil<- aggregate(wildschwein_all[, c(14)], list(wildschwein_all$Habitattyp), sum)
+wildschwein_all_anteil_jahreszeit<- aggregate(wildschwein_all[, c(14)], list(wildschwein_all$Habitattyp, wildschwein_all$Jahreszeit), sum)
+
+wildschwein_all_anteil_fruehling<-wildschwein_all_anteil_jahreszeit%>%filter(Group.2 == "Fruehling")
+wildschwein_all_anteil_sommer<-wildschwein_all_anteil_jahreszeit%>%filter(Group.2 == "Sommer")
+wildschwein_all_anteil_herbst<-wildschwein_all_anteil_jahreszeit%>%filter(Group.2 == "Herbst")
+wildschwein_all_anteil_winter<-wildschwein_all_anteil_jahreszeit%>%filter(Group.2 == "Winter")
+
+barplot(Anteil~Group.1, data = wildschwein_all_anteil)
+
+# Frühling, Sommer, Herbst und Winter in richtiger Rheienfolge
+neworder <- c("Fruehling","Sommer","Herbst", "Winter")
+library(plyr)  ## or dplyr (transform -> mutate)
+wildschwein_all <- arrange(transform(wildschwein_all,
+                                     Jahreszeit=factor(Jahreszeit,levels=neworder)),Jahreszeit)
+
+# Resultate Plots
+ggplot() +
+  geom_bar(data=wildschwein_all, aes(sum(Anteil),fill = Habitattyp), position = "fill")+
+  facet_grid(~Jahreszeit)+
+  labs(x = "Jahreszeiten", y = "Aufteilung aller Lokationen in die verschiedenen Habitattypen", title = "Raumnutzung im Untersuchungsgebiet")+
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+ggplot() +
+  geom_sf(data=Feldaufnahmen_korr, aes(fill = Frucht))+
+  geom_point(data = wildschwein_all, aes(E, N))+
+  theme(axis.text.x=element_blank(), axis.text.y=element_blank(),
+        axis.ticks.x=element_blank(), axis.ticks.y=element_blank())+
+  labs(x = "", y = "", title = "Raumnutzung Untersuchungsgebiet nach Habitattyp", subtitle = "")
+
+# Kuchendiagramme und Prozentzahlen
+pct <- round(wildschwein_all_anteil$Anteil/sum(wildschwein_all_anteil$Anteil)*100)
+lbls <- paste(wildschwein_all_anteil$Group.1, pct) # add percents to labels
+lbls <- paste(lbls,"%",sep="") # ad % to labels
+pie(wildschwein_all_anteil$Anteil,labels = lbls, col=rainbow(length(lbls)),
+    main="Aufteilung der aller Lokationen nach Vegetationstyp")
+
+pct <- round(wildschwein_all_anteil_fruehling$Anteil/sum(wildschwein_all_anteil_fruehling$Anteil)*100)
+lbls <- paste(wildschwein_all_anteil_fruehling$Group.1, pct)
+lbls <- paste(lbls,"%",sep="")
+pie(wildschwein_all_anteil_fruehling$Anteil,labels = lbls, col=rainbow(length(lbls)),
+    main="Aufteilung der Ruheplaetze nach Vegetationstyp - Fruehling")
+
+pct <- round(wildschwein_anteil_sommer$Anteil/sum(wildschwein_anteil_sommer$Anteil)*100)
+lbls <- paste(wildschwein_anteil_sommer$Group.1, pct)
+lbls <- paste(lbls,"%",sep="")
+pie(wildschwein_anteil_sommer$Anteil,labels = lbls, col=rainbow(length(lbls)),
+    main="Aufteilung der Ruheplaetze nach Vegetationstyp - Sommer")
+
+pct <- round(wildschwein_all_anteil_herbst$Anteil/sum(wildschwein_all_anteil_herbst$Anteil)*100)
+lbls <- paste(wildschwein_all_anteil_herbst$Group.1, pct) # add percents to labels
+lbls <- paste(lbls,"%",sep="") # ad % to labels
+pie(wildschwein_all_anteil_herbst$Anteil,labels = lbls, col=rainbow(length(lbls)),
+    main="Aufteilung der Ruheplaetze nach Vegetationstyp - Herbst")
+
+pct <- round(wildschwein_all_anteil_winter$Anteil/sum(wildschwein_all_anteil_winter$Anteil)*100)
+lbls <- paste(wildschwein_all_anteil_winter$Group.1, pct) # add percents to labels
+lbls <- paste(lbls,"%",sep="") # ad % to labels
+pie(wildschwein_all_anteil_winter$Anteil,labels = lbls, col=rainbow(length(lbls)),
+    main="Aufteilung der Ruheplaetze nach Vegetationstyp - Winter")
+
+# Vergleich Ruheplätze zu gesamter Raumnutzung
+wildschwein_anteil$Data<-"Ruheplatz"
+wildschwein_all_anteil$Data<-"Alle"
+wildschwein_anteil_rbind<-rbind(wildschwein_anteil, wildschwein_all_anteil)
+
+ggplot() +
+  geom_bar(data=wildschwein_all, aes(sum(Anteil),fill = Habitattyp), position = "fill")+
+  facet_grid(~Jahreszeit)+
+  labs(x = "Jahreszeiten", y = "Aufteilung aller Lokationen in die verschiedenen Habitattypen", title = "Raumnutzung im Untersuchungsgebiet")+
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
 ###################################################################
 # STATISTISCHE TESTS
 
