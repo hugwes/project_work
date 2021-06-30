@@ -245,9 +245,8 @@ pie(wildschwein_anteil_winter$Anteil,labels = lbls, col=rainbow(length(lbls)),
 # Durchschnittliche Dauer am Ruheort
 wildschwein_dauer <- aggregate(wildschwein[, c(8)], list(wildschwein$Habitattyp), mean)
 
-
-
 ###################################################################
+# AUFTEILUNG DER TOTALEN RAUMNUTZNG AUF VEGETATIONSTYPEN 
 # Vergleich mit dem von den Wildschweinen genutztem Habitat
 # Feldaufnahmen kategorisieren, NA's entfernen
 wildschwein_BE <- wildschwein_BE%>%
