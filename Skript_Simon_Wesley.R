@@ -312,7 +312,7 @@ mean(Mais)
 
 Niedere_Kulturen<- wildschwein%>%filter(Habitattyp == "Niedere Kulturen")
 Niedere_Kulturen<-Niedere_Kulturen[, 8:9]
-Niedere_Kulturen<-Niedere_Kulturen[!duplicated(Wald), ]
+Niedere_Kulturen<-Niedere_Kulturen[!duplicated(Niedere_Kulturen), ]
 Niedere_Kulturen<-Niedere_Kulturen[, 1]
 mean(Niedere_Kulturen)
 
@@ -515,5 +515,61 @@ W_kde <- cbind(Feldaufnahmen, kde_value_herbst)
 herbst_mittelwerte <- aggregate(W_kde$kde_value_herbst ~ W_kde$Frucht, FUN=mean)
 
 
+###################################################################
+### PLOTS FÜR DISKUSSION ###
+###################################################################
+
+###################################################################
+# RUHEPLÄTZE NACH JAHRESZEITEN FILTERN
+wildschwein_winter <- wildschwein%>%filter(Jahreszeit == "Winter")
+wildschwein_frueling <- wildschwein%>%filter(Jahreszeit == "Fruehling")
+wildschwein_sommer <- wildschwein%>%filter(Jahreszeit == "Sommer")
+wildschwein_herbst <- wildschwein%>%filter(Jahreszeit == "Herbst")
+
+###################################################################
+# RUHEPLÄTZE MIT KDE - VERGLEICH
+# Winter
+winter_kde <- kde(Winter, cellsize=20, bandwith=50, extent=Feldaufnahmen)
+q95_winter <- raster::quantile(winter_kde, probs=0.95)
+ggplot() +
+  geom_sf(data=Feldaufnahmen, fill=NA, color="black") +
+  geom_stars(data=st_as_stars(winter_kde), alpha=0.8) +
+  scale_fill_viridis_c(trans="log10", limits=c(q95_winter,NA), na.value=NA) +
+  geom_point(data = wildschwein_winter, aes(E.y, N.y, size = Anzahl_Messungen))+
+  theme_void() +
+  labs(fill="KDE", title="Dichteverteilung der Wildschweine im Winter")
+
+# Frühling
+frühjahr_kde <- kde(Frühjahr, cellsize=20, bandwith=50, extent=Feldaufnahmen)
+q95_frühjahr <- raster::quantile(frühjahr_kde, probs=0.95)
+ggplot() +
+  geom_sf(data=Feldaufnahmen_korr, aes(fill=NA, color=Feldaufnahmen_korr$Frucht)) +
+  geom_stars(data=st_as_stars(frühjahr_kde), alpha=0.8) +
+  scale_fill_viridis_c(trans="log10", limits=c(q95_frühjahr,NA), na.value=NA) +
+  geom_point(data = wildschwein_frueling, aes(E.y, N.y, color = Habitattyp, size = Anzahl_Messungen))+
+  theme_void() +
+  labs(fill="KDE", title="Dichteverteilung der Wildschweine im Frühjahr")
+
+# Sommer
+sommer_kde <- kde(Sommer, cellsize=20, bandwith=50, extent=Feldaufnahmen)
+q95_sommer <- raster::quantile(sommer_kde, probs=0.95)
+ggplot() +
+  geom_sf(data=Feldaufnahmen, fill=NA, color="black") +
+  geom_stars(data=st_as_stars(sommer_kde), alpha=0.8) +
+  scale_fill_viridis_c(trans="log10", limits=c(q95_sommer,NA), na.value=NA) +
+  geom_point(data = wildschwein_sommer, aes(E.y, N.y, color = Habitattyp, size = Anzahl_Messungen))+
+  theme_void() +
+  labs(fill="KDE", title="Dichteverteilung der Wildschweine im Sommer")
+
+# Herbst
+herbst_kde <- kde(Herbst, cellsize=20, bandwith=50, extent=Feldaufnahmen)
+q95_herbst <- raster::quantile(herbst_kde, probs=0.95)
+ggplot() +
+  geom_sf(data=Feldaufnahmen, fill=NA, color="black") +
+  geom_stars(data=st_as_stars(herbst_kde), alpha=0.8) +
+  scale_fill_viridis_c(trans="log10", limits=c(q95_herbst,NA), na.value=NA) +
+  geom_point(data = wildschwein_herbst, aes(E.y, N.y, color = Habitattyp, size = Anzahl_Messungen))+
+  theme_void() +
+  labs(fill="KDE", title="Dichteverteilung der Wildschweine im Herbst")
 
 
